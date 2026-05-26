@@ -7,12 +7,12 @@ var client *mongo.Client
 var prayercollection *mongo.Collection
 var citycollection *mongo.Collection
 
-struct city {
+type city struct {
 	id int `json:"id" bson:"id"`
 	name string `json:"name" bson:"name"`
 }
 
-struct prayertimes {
+type prayer struct {
 	id int `json:"id" bson:"id"`
 	cityid int `json:"cityid" bson:"cityid"`
 
@@ -23,6 +23,8 @@ struct prayertimes {
 	maghrib string `json:"maghrib" bson:"maghrib"`
 	isha string `json:"isha" bson:"isha"`
 }
+
+
 
 
 
