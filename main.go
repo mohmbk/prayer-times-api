@@ -1,7 +1,8 @@
 package main 
 import ("fmt" ; "net/http" ; "encoding/json" ; "time" ; "context" ; "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options" ; )
+	"go.mongodb.org/mongo-driver/mongo/options" ; "strconv"
+    "strings" )
 
 var client *mongo.Client
 var prayercollection *mongo.Collection
@@ -39,35 +40,34 @@ func getCurrentDayPrayerTimes(w http.ResponseWriter , r *http.Request) {
 
 	cityname := r.URL.Query().Get("name");
 	var city city ;
-	_ , err := citycollection.FindOne(context.Background() , bson.M{"name": cityname}).Decode(&city);
+	err := citycollection.FindOne(context.Background() , bson.M{"name": cityname}).Decode(&city);
 	if err != nil {
 		http.Error(w , "City not found" , http.StatusNotFound);
 		return ;
 	}
-	fmt.Println(result);
-
-	now = time.Now();
+	
+	now := time.Now();
 	today := now.Format("2006-01-02");
 	
 	var prayer prayer ;
-	result , err = prayercollection.FindOne(context.Background , bson.M{"cityid": city.id , "date": today}).Decode(&prayer);
+	err = prayercollection.FindOne(context.Background() , bson.M{"cityid": city.id , "date": today}).Decode(&prayer);
 	if err != nil {
 		http.Error(w , "Prayer times not found for today" , http.StatusNotFound)
 		return ;
 	}
+	
 
-	w.header().Set("Content-Type" , "application/json");
+	w.Header().Set("Content-Type" , "application/json");
 	json.NewEncoder(w).Encode(prayer);
 	
 }
 
 func toMinutes(t string) int {
-    parts := strings.Split(t, ":")
-    
-    hours, _ := strconv.Atoi(parts[0])
-    mins, _ := strconv.Atoi(parts[1])
+    parts := strings.Split(t, ":");
+    hours, _ := strconv.Atoi(parts[0]);
+    mins, _  := strconv.Atoi(parts[1]);
 
-    return hours*60 + mins
+    return hours*60 + mins ;
 }
 
 func getCurrentPrayerTimes(w http.ResponseWriter , r *http.Request) {
@@ -81,7 +81,7 @@ func getCurrentPrayerTimes(w http.ResponseWriter , r *http.Request) {
 	cityname := r.URL.Query().Get("name");
 
 	var city city ;
-	result , err := citycollection.FindOne(context.Background() , bson.M{"name": cityname}).Decode(&city);
+	err := citycollection.FindOne(context.Background() , bson.M{"name": cityname}).Decode(&city);
 	if err != nil {
 		http.Error(w , "City not found" , http.StatusNotFound);
 		return ;
@@ -89,7 +89,7 @@ func getCurrentPrayerTimes(w http.ResponseWriter , r *http.Request) {
 	today := now.Format("2006-01-02");
 	
 	var prayer prayer ;
-	result , err = prayercollection.FindOne(context.Background , bson.M{"cityid": city.id , "date": today}).Decode(&prayer);
+	err = prayercollection.FindOne(context.Background() , bson.M{"cityid": city.id , "date": today}).Decode(&prayer);
 	if err != nil {
 		http.Error(w , "Prayer times not found for today" , http.StatusNotFound)
 		return ;
@@ -149,7 +149,7 @@ func getprayerTimesForMonth(w http.ResponseWriter , r *http.Request) {
 	var year string = r.URL.Query().Get("year");
 	prefix := GetMonth(month , year);
 	var city city ;
-	result , err := citycollection.FindOne(context.Background() , bson.M{"name": cityname , ''}).Decode(&city);
+	err := citycollection.FindOne(context.Background() , bson.M{"name": cityname}).Decode(&city);
 	if err != nil {
 		http.Error(w , "City not found" , http.StatusNotFound);
 		return ;
@@ -180,7 +180,7 @@ func createCity(w http.ResponseWriter , r *http.Request) {
 		return ;
 	}
 	var newCity city ;
-	err := json.newDecoder(r.Body).Decode(&newCity);
+	err := json.NewDecoder(r.Body).Decode(&newCity);
 	if err != nil {
 		http.Error(w , "Invalid request body" , http.StatusBadRequest);
 		return ;
@@ -190,6 +190,7 @@ func createCity(w http.ResponseWriter , r *http.Request) {
 		http.Error(w , "Error creating city" , http.StatusInternalServerError);
 		return ;
 	}
+	fmt.Fprintf(w , "City created with ID: %v" , result.InsertedID);
 
 }
 
@@ -205,8 +206,13 @@ func main() {
 	}
 
 	prayercollection = client.Database("prayerDB").Collection("prayercollection");
-	citycollection = client.Database("prayerDB").collection("citycollection");
-	
+	citycollection = client.Database("prayerDB").Collection("citycollection");
+
+	//for test to see in mongodb compass
+	result , err := prayercollection.InsertOne(context.Background() , prayer{id: 1 , cityid: 1 , date: "2024-06-01" , fajr: "04:30" , dhuhr: "12:00" , asr: "15:30" , maghrib: "18:45" , isha: "20:15"});
+	fmt.Println("Inserted prayer times with ID: " , result.InsertedID);
+	result , err = citycollection.InsertOne(context.Background() , city{id: 1 , name: "Alger"});
+
 	http.HandleFunc("/current_prayer_times" , getCurrentPrayerTimes);
 	http.HandleFunc("/today_prayer_times" , getCurrentDayPrayerTimes);
 	http.HandleFunc("/month_prayer_times" , getprayerTimesForMonth);
